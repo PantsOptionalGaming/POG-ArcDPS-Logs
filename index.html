@@ -23,7 +23,7 @@
     }
     .filter {
       margin: 20px auto;
-      max-width: 600px;
+      max-width: 700px;
       display: flex;
       gap: 10px;
       justify-content: center;
@@ -38,6 +38,18 @@
       border: 1px solid #444;
       border-radius: 4px;
     }
+    .filter button {
+      padding: 8px 12px;
+      font-size: 1em;
+      background: #222;
+      color: #5af;
+      border: 1px solid #444;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .filter button:hover {
+      background: #333;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -51,6 +63,9 @@
       background: #222;
       color: #5af;
       cursor: pointer;
+      position: sticky;
+      top: 0;
+      z-index: 1;
     }
     tr:nth-child(even) {
       background: #1a1a1a;
@@ -66,14 +81,13 @@
       table, thead, tbody, th, td, tr {
         display: block;
       }
-      th {
-        position: sticky;
-        top: 0;
-      }
       td {
         padding: 8px;
         display:flex;
         justify-content: space-between;
+      }
+      th {
+        top: 0;
       }
     }
   </style>
@@ -86,9 +100,7 @@
   <div class="filter">
     <label>
       GameMode:
-      <select id="modeFilter">
-        <option value="">All</option>
-      </select>
+      <select id="modeFilter"><option value="">All</option></select>
     </label>
     <label>
       Date:
@@ -112,12 +124,18 @@
   </table>
 
   <script>
-    const sheetURL = 'https://script.googleusercontent.com/macros/echo?user_content_key=AehSKLgE2yvPVZu00MT_A7kvCfMRiro9LHSEdOhJSqOK8CgiMSZVFU2aYquxTqLo3sFN3n1yx4Qjul48YL3vNzLeCXbAwdDXOnfe1wzL4UIABSP490N8QSUwmDvLfmdcaO-IwhSFCu856gYpITBYHWqLQyy-tfaXp7jKPA4h1p_BCQ3mBzXoKZ8XTIzry2a8NnAGfFUIkznYEgxgvCxTThZ4WNfEA_tTK7Uak69nhH2kEQKT606qDcQJHiZQB2LdURdUNHGKtjp5D_bhrDDjzlCtcg8ZLPhq4g&lib=MAmB-M0XdsSC_noBPCqrowDblCgvwYM59';
+    // Replace with your deployed WebAPI URL
+    const sheetURL = 'https://script.google.com/macros/s/AKfycbzJ7bkF8OmZMQIpz5x9OmDoQZGeVaorI-rmuMD3W0y6ExYOARQHSiULrtGgHNbSv8Fo/exec';
 
     async function fetchData() {
-      const resp = await fetch(sheetURL);
-      const data = await resp.json();
-      return data;
+      try {
+        const resp = await fetch(sheetURL);
+        const data = await resp.json();
+        return data;
+      } catch (err) {
+        console.error("Error fetching logs:", err);
+        return [];
+      }
     }
 
     function renderTable(data) {
@@ -126,11 +144,11 @@
       data.forEach(r => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${r.GameMode}</td>
-          <td>${r.Date}</td>
-          <td>${r.Time}</td>
-          <td>${r.Result}</td>
-          <td><a href="${r.Link}" target="_blank">View Log</a></td>
+          <td>${r.GameMode || ''}</td>
+          <td>${r.Date || ''}</td>
+          <td>${r.Time || ''}</td>
+          <td>${r.Result || ''}</td>
+          <td>${r.Link ? `<a href="${r.Link}" target="_blank">View Log</a>` : ''}</td>
           <td>${r.VideoLink ? `<a href="${r.VideoLink}" target="_blank">Watch</a>` : ''}</td>
         `;
         tbody.appendChild(tr);
@@ -140,25 +158,28 @@
     function applyFilters(data) {
       const modeVal = document.getElementById('modeFilter').value;
       const dateVal = document.getElementById('dateFilter').value;
-      return data.filter(r => {
-        return (!modeVal || r.GameMode === modeVal)
-          && (!dateVal || r.Date === dateVal);
-      });
+      return data.filter(r => (!modeVal || r.GameMode === modeVal)
+                            && (!dateVal || r.Date === dateVal));
     }
 
-    async function init() {
-      const data = await fetchData();
-      // populate mode dropdown
-      const modes = [...new Set(data.map(r => r.GameMode))].sort();
+    function populateFilters(data) {
       const modeSelect = document.getElementById('modeFilter');
+      const modes = [...new Set(data.map(r => r.GameMode))].sort();
+      modeSelect.innerHTML = '<option value="">All</option>';
       modes.forEach(m => {
         const opt = document.createElement('option');
         opt.value = m;
         opt.textContent = m;
         modeSelect.appendChild(opt);
       });
+    }
 
-      // event listeners
+    async function init() {
+      let data = await fetchData();
+      populateFilters(data);
+      renderTable(data);
+
+      // Event listeners
       document.getElementById('modeFilter').addEventListener('change', () => renderTable(applyFilters(data)));
       document.getElementById('dateFilter').addEventListener('input', () => renderTable(applyFilters(data)));
       document.getElementById('clearFilters').addEventListener('click', () => {
@@ -167,7 +188,12 @@
         renderTable(data);
       });
 
-      renderTable(data);
+      // Auto-refresh every 2 minutes
+      setInterval(async () => {
+        data = await fetchData();
+        populateFilters(data);
+        renderTable(applyFilters(data));
+      }, 2 * 60 * 1000);
     }
 
     init();
