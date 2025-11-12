@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>POG Fight Logs</title>
+  <style>
+    body {
+      background-color: #111;
+      color: #eee;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0 20px 40px;
+    }
+    header {
+      text-align: center;
+      padding: 20px 0;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 2.5em;
+      color: #5af;
+    }
+    .filter {
+      margin: 20px auto;
+      max-width: 600px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .filter select,
+    .filter input[type="date"] {
+      padding: 8px 12px;
+      font-size: 1em;
+      background: #222;
+      color: #eee;
+      border: 1px solid #444;
+      border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 12px 8px;
+      text-align: left;
+    }
+    th {
+      background: #222;
+      color: #5af;
+      cursor: pointer;
+    }
+    tr:nth-child(even) {
+      background: #1a1a1a;
+    }
+    a {
+      color: #5af;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    @media (max-width: 600px) {
+      table, thead, tbody, th, td, tr {
+        display: block;
+      }
+      th {
+        position: sticky;
+        top: 0;
+      }
+      td {
+        padding: 8px;
+        display:flex;
+        justify-content: space-between;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>POG Fight Logs</h1>
+  </header>
+
+  <div class="filter">
+    <label>
+      GameMode:
+      <select id="modeFilter">
+        <option value="">All</option>
+      </select>
+    </label>
+    <label>
+      Date:
+      <input type="date" id="dateFilter">
+    </label>
+    <button id="clearFilters">Clear</button>
+  </div>
+
+  <table id="logsTable">
+    <thead>
+      <tr>
+        <th>GameMode</th>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Result</th>
+        <th>Log</th>
+        <th>Video</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const sheetURL = 'PASTE_YOUR_WEB_APP_URL_HERE';
+
+    async function fetchData() {
+      const resp = await fetch(sheetURL);
+      const data = await resp.json();
+      return data;
+    }
+
+    function renderTable(data) {
+      const tbody = document.querySelector('#logsTable tbody');
+      tbody.innerHTML = '';
+      data.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${r.GameMode}</td>
+          <td>${r.Date}</td>
+          <td>${r.Time}</td>
+          <td>${r.Result}</td>
+          <td><a href="${r.Link}" target="_blank">View Log</a></td>
+          <td>${r.VideoLink ? `<a href="${r.VideoLink}" target="_blank">Watch</a>` : ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function applyFilters(data) {
+      const modeVal = document.getElementById('modeFilter').value;
+      const dateVal = document.getElementById('dateFilter').value;
+      return data.filter(r => {
+        return (!modeVal || r.GameMode === modeVal)
+          && (!dateVal || r.Date === dateVal);
+      });
+    }
+
+    async function init() {
+      const data = await fetchData();
+      // populate mode dropdown
+      const modes = [...new Set(data.map(r => r.GameMode))].sort();
+      const modeSelect = document.getElementById('modeFilter');
+      modes.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        modeSelect.appendChild(opt);
+      });
+
+      // event listeners
+      document.getElementById('modeFilter').addEventListener('change', () => renderTable(applyFilters(data)));
+      document.getElementById('dateFilter').addEventListener('input', () => renderTable(applyFilters(data)));
+      document.getElementById('clearFilters').addEventListener('click', () => {
+        document.getElementById('modeFilter').value = '';
+        document.getElementById('dateFilter').value = '';
+        renderTable(data);
+      });
+
+      renderTable(data);
+    }
+
+    init();
+  </script>
+</body>
+</html>
