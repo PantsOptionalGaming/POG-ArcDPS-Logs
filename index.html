@@ -38,18 +38,6 @@
       border: 1px solid #444;
       border-radius: 4px;
     }
-    button {
-      padding: 8px 12px;
-      background: #5af;
-      border: none;
-      color: #111;
-      font-weight: bold;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #48f;
-    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -58,7 +46,6 @@
     th, td {
       padding: 12px 8px;
       text-align: left;
-      vertical-align: middle;
     }
     th {
       background: #222;
@@ -126,10 +113,10 @@
   </table>
 
   <script>
-    const sheetURL = 'https://script.google.com/macros/library/d/1XLeomuy8JYH3QmDSldRFQ0s-8yCCqhSyoT7mXLun4OvjsfM_Xq2wtQBJ/1';
+    const webAPIURL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
 
     async function fetchData() {
-      const resp = await fetch(sheetURL);
+      const resp = await fetch(webAPIURL);
       const data = await resp.json();
       return data;
     }
@@ -137,17 +124,20 @@
     function renderTable(data) {
       const tbody = document.querySelector('#logsTable tbody');
       tbody.innerHTML = '';
+
       data.forEach(r => {
-        const jsonURL = r.Link ? r.Link.replace('/view?usp=drivesdk', '') : '';
-        const rawJSON = jsonURL ? `${jsonURL}?alt=media` : '';
+        // Use Apps Script proxy for JSON logs
+        const fileId = r.FileId || '';
+        const proxyURL = fileId ? `${webAPIURL}?id=${fileId}` : '';
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${r.GameMode || ''}</td>
-          <td>${r.Date || ''}</td>
-          <td>${r.Time || ''}</td>
-          <td>${r.Result || ''}</td>
-          <td>${r.Link ? `<a href="${r.Link}" target="_blank">View Log</a>` : ''}</td>
-          <td>${rawJSON ? `<a href="${rawJSON}" target="_blank">Raw JSON</a>` : ''}</td>
+          <td>${r.GameMode}</td>
+          <td>${r.Date}</td>
+          <td>${r.Time}</td>
+          <td>${r.Result}</td>
+          <td>${proxyURL ? `<a href="${proxyURL}" target="_blank">View Log</a>` : ''}</td>
+          <td>${proxyURL ? `<a href="${proxyURL}" target="_blank">Raw JSON</a>` : ''}</td>
           <td>${r.Processed || ''}</td>
         `;
         tbody.appendChild(tr);
@@ -166,7 +156,7 @@
     async function init() {
       const data = await fetchData();
 
-      // populate GameMode dropdown
+      // Populate GameMode dropdown
       const modes = [...new Set(data.map(r => r.GameMode))].sort();
       const modeSelect = document.getElementById('modeFilter');
       modes.forEach(m => {
@@ -176,7 +166,7 @@
         modeSelect.appendChild(opt);
       });
 
-      // event listeners
+      // Event listeners
       document.getElementById('modeFilter').addEventListener('change', () => renderTable(applyFilters(data)));
       document.getElementById('dateFilter').addEventListener('input', () => renderTable(applyFilters(data)));
       document.getElementById('clearFilters').addEventListener('click', () => {
