@@ -5,76 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>POG Fight Logs</title>
   <style>
-    body {
-      background-color: #111;
-      color: #eee;
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0 20px 40px;
-    }
-    header {
-      text-align: center;
-      padding: 20px 0;
-    }
-    header h1 {
-      margin: 0;
-      font-size: 2.5em;
-      color: #5af;
-    }
-    .filter {
-      margin: 20px auto;
-      max-width: 600px;
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-    .filter select,
-    .filter input[type="date"] {
-      padding: 8px 12px;
-      font-size: 1em;
-      background: #222;
-      color: #eee;
-      border: 1px solid #444;
-      border-radius: 4px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-    }
-    th, td {
-      padding: 12px 8px;
-      text-align: left;
-    }
-    th {
-      background: #222;
-      color: #5af;
-      cursor: pointer;
-    }
-    tr:nth-child(even) {
-      background: #1a1a1a;
-    }
-    a {
-      color: #5af;
-      text-decoration: none;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
+    body { background-color: #111; color: #eee; font-family: Arial, sans-serif; margin: 0; padding: 0 20px 40px; }
+    header { text-align: center; padding: 20px 0; }
+    header h1 { margin: 0; font-size: 2.5em; color: #5af; }
+    .filter { margin: 20px auto; max-width: 600px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .filter select, .filter input[type="date"] { padding: 8px 12px; font-size: 1em; background: #222; color: #eee; border: 1px solid #444; border-radius: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 12px 8px; text-align: left; }
+    th { background: #222; color: #5af; cursor: pointer; }
+    tr:nth-child(even) { background: #1a1a1a; }
+    a { color: #5af; text-decoration: none; }
+    a:hover { text-decoration: underline; }
     @media (max-width: 600px) {
-      table, thead, tbody, th, td, tr {
-        display: block;
-      }
-      th {
-        position: sticky;
-        top: 0;
-      }
-      td {
-        padding: 8px;
-        display:flex;
-        justify-content: space-between;
-      }
+      table, thead, tbody, th, td, tr { display: block; }
+      th { position: sticky; top: 0; }
+      td { padding: 8px; display:flex; justify-content: space-between; }
     }
   </style>
 </head>
@@ -84,14 +29,10 @@
   </header>
 
   <div class="filter">
-    <label>
-      GameMode:
-      <select id="modeFilter">
-        <option value="">All</option>
-      </select>
+    <label>GameMode:
+      <select id="modeFilter"><option value="">All</option></select>
     </label>
-    <label>
-      Date:
+    <label>Date:
       <input type="date" id="dateFilter">
     </label>
     <button id="clearFilters">Clear</button>
@@ -106,17 +47,19 @@
         <th>Result</th>
         <th>View Log</th>
         <th>Raw JSON</th>
-        <th>Processed</th>
+        <th>Video</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 
   <script>
-    const webAPIURL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
+    // Replace with your WebAPI URL
+    const sheetURL = 'https://script.google.com/macros/library/d/1XLeomuy8JYH3QmDSldRFQ0s-8yCCqhSyoT7mXLun4OvjsfM_Xq2wtQBJ/1';
+    const proxyBase = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?id='; // Apps Script proxy URL
 
     async function fetchData() {
-      const resp = await fetch(webAPIURL);
+      const resp = await fetch(sheetURL);
       const data = await resp.json();
       return data;
     }
@@ -124,23 +67,18 @@
     function renderTable(data) {
       const tbody = document.querySelector('#logsTable tbody');
       tbody.innerHTML = '';
-
       data.forEach(r => {
-        // Use Apps Script proxy for JSON logs
-        const fileId = r.FileId || '';
-        const proxyURL = fileId ? `${webAPIURL}?id=${fileId}` : '';
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${r.GameMode}</td>
-          <td>${r.Date}</td>
-          <td>${r.Time}</td>
-          <td>${r.Result}</td>
-          <td>${proxyURL ? `<a href="${proxyURL}" target="_blank">View Log</a>` : ''}</td>
-          <td>${proxyURL ? `<a href="${proxyURL}" target="_blank">Raw JSON</a>` : ''}</td>
-          <td>${r.Processed || ''}</td>
-        `;
-        tbody.appendChild(tr);
+        const proxyLink = r.FileId ? `${proxyBase}${r.FileId}` : '';
+        tbody.innerHTML += `
+          <tr>
+            <td>${r.GameMode || ''}</td>
+            <td>${r.Date || ''}</td>
+            <td>${r.Time || ''}</td>
+            <td>${r.Result || ''}</td>
+            <td>${proxyLink ? `<a href="${proxyLink}" target="_blank">View Log</a>` : ''}</td>
+            <td>${proxyLink ? `<a href="${proxyLink}&raw=true" target="_blank">Raw JSON</a>` : ''}</td>
+            <td>${r.VideoLink ? `<a href="${r.VideoLink}" target="_blank">Watch</a>` : ''}</td>
+          </tr>`;
       });
     }
 
@@ -149,14 +87,14 @@
       const dateVal = document.getElementById('dateFilter').value;
       return data.filter(r => {
         return (!modeVal || r.GameMode === modeVal)
-          && (!dateVal || r.Date === dateVal);
+            && (!dateVal || r.Date === dateVal);
       });
     }
 
     async function init() {
       const data = await fetchData();
 
-      // Populate GameMode dropdown
+      // populate GameMode dropdown
       const modes = [...new Set(data.map(r => r.GameMode))].sort();
       const modeSelect = document.getElementById('modeFilter');
       modes.forEach(m => {
@@ -166,7 +104,6 @@
         modeSelect.appendChild(opt);
       });
 
-      // Event listeners
       document.getElementById('modeFilter').addEventListener('change', () => renderTable(applyFilters(data)));
       document.getElementById('dateFilter').addEventListener('input', () => renderTable(applyFilters(data)));
       document.getElementById('clearFilters').addEventListener('click', () => {
