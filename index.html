@@ -23,7 +23,7 @@
     }
     .filter {
       margin: 20px auto;
-      max-width: 700px;
+      max-width: 600px;
       display: flex;
       gap: 10px;
       justify-content: center;
@@ -38,17 +38,17 @@
       border: 1px solid #444;
       border-radius: 4px;
     }
-    .filter button {
+    button {
       padding: 8px 12px;
-      font-size: 1em;
-      background: #222;
-      color: #5af;
-      border: 1px solid #444;
+      background: #5af;
+      border: none;
+      color: #111;
+      font-weight: bold;
       border-radius: 4px;
       cursor: pointer;
     }
-    .filter button:hover {
-      background: #333;
+    button:hover {
+      background: #48f;
     }
     table {
       width: 100%;
@@ -58,14 +58,12 @@
     th, td {
       padding: 12px 8px;
       text-align: left;
+      vertical-align: middle;
     }
     th {
       background: #222;
       color: #5af;
       cursor: pointer;
-      position: sticky;
-      top: 0;
-      z-index: 1;
     }
     tr:nth-child(even) {
       background: #1a1a1a;
@@ -81,13 +79,14 @@
       table, thead, tbody, th, td, tr {
         display: block;
       }
+      th {
+        position: sticky;
+        top: 0;
+      }
       td {
         padding: 8px;
         display:flex;
         justify-content: space-between;
-      }
-      th {
-        top: 0;
       }
     }
   </style>
@@ -100,7 +99,9 @@
   <div class="filter">
     <label>
       GameMode:
-      <select id="modeFilter"><option value="">All</option></select>
+      <select id="modeFilter">
+        <option value="">All</option>
+      </select>
     </label>
     <label>
       Date:
@@ -116,32 +117,29 @@
         <th>Date</th>
         <th>Time</th>
         <th>Result</th>
-        <th>Log</th>
-        <th>Video</th>
+        <th>View Log</th>
+        <th>Raw JSON</th>
+        <th>Processed</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 
   <script>
-    // Replace with your deployed WebAPI URL
-    const sheetURL = 'https://script.google.com/macros/s/AKfycbzJ7bkF8OmZMQIpz5x9OmDoQZGeVaorI-rmuMD3W0y6ExYOARQHSiULrtGgHNbSv8Fo/exec';
+    const sheetURL = 'https://script.google.com/macros/library/d/1XLeomuy8JYH3QmDSldRFQ0s-8yCCqhSyoT7mXLun4OvjsfM_Xq2wtQBJ/1';
 
     async function fetchData() {
-      try {
-        const resp = await fetch(sheetURL);
-        const data = await resp.json();
-        return data;
-      } catch (err) {
-        console.error("Error fetching logs:", err);
-        return [];
-      }
+      const resp = await fetch(sheetURL);
+      const data = await resp.json();
+      return data;
     }
 
     function renderTable(data) {
       const tbody = document.querySelector('#logsTable tbody');
       tbody.innerHTML = '';
       data.forEach(r => {
+        const jsonURL = r.Link ? r.Link.replace('/view?usp=drivesdk', '') : '';
+        const rawJSON = jsonURL ? `${jsonURL}?alt=media` : '';
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${r.GameMode || ''}</td>
@@ -149,7 +147,8 @@
           <td>${r.Time || ''}</td>
           <td>${r.Result || ''}</td>
           <td>${r.Link ? `<a href="${r.Link}" target="_blank">View Log</a>` : ''}</td>
-          <td>${r.VideoLink ? `<a href="${r.VideoLink}" target="_blank">Watch</a>` : ''}</td>
+          <td>${rawJSON ? `<a href="${rawJSON}" target="_blank">Raw JSON</a>` : ''}</td>
+          <td>${r.Processed || ''}</td>
         `;
         tbody.appendChild(tr);
       });
@@ -158,28 +157,26 @@
     function applyFilters(data) {
       const modeVal = document.getElementById('modeFilter').value;
       const dateVal = document.getElementById('dateFilter').value;
-      return data.filter(r => (!modeVal || r.GameMode === modeVal)
-                            && (!dateVal || r.Date === dateVal));
+      return data.filter(r => {
+        return (!modeVal || r.GameMode === modeVal)
+          && (!dateVal || r.Date === dateVal);
+      });
     }
 
-    function populateFilters(data) {
-      const modeSelect = document.getElementById('modeFilter');
+    async function init() {
+      const data = await fetchData();
+
+      // populate GameMode dropdown
       const modes = [...new Set(data.map(r => r.GameMode))].sort();
-      modeSelect.innerHTML = '<option value="">All</option>';
+      const modeSelect = document.getElementById('modeFilter');
       modes.forEach(m => {
         const opt = document.createElement('option');
         opt.value = m;
         opt.textContent = m;
         modeSelect.appendChild(opt);
       });
-    }
 
-    async function init() {
-      let data = await fetchData();
-      populateFilters(data);
-      renderTable(data);
-
-      // Event listeners
+      // event listeners
       document.getElementById('modeFilter').addEventListener('change', () => renderTable(applyFilters(data)));
       document.getElementById('dateFilter').addEventListener('input', () => renderTable(applyFilters(data)));
       document.getElementById('clearFilters').addEventListener('click', () => {
@@ -188,12 +185,7 @@
         renderTable(data);
       });
 
-      // Auto-refresh every 2 minutes
-      setInterval(async () => {
-        data = await fetchData();
-        populateFilters(data);
-        renderTable(applyFilters(data));
-      }, 2 * 60 * 1000);
+      renderTable(data);
     }
 
     init();
